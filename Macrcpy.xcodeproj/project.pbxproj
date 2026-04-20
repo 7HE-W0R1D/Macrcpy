@@ -15,6 +15,7 @@
 		778DA89CA6A5BA008053D4DD /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FA98ABF0A8BAC9E0EA403CE /* AppState.swift */; };
 		8C5D638EA54993083715F2EB /* MacrcpyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03C57463B2232F15437AA57E /* MacrcpyApp.swift */; };
 		9D464FDCDA1714AE5C65903D /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8606E28593214C5ADB1C744B /* EmptyStateView.swift */; };
+		AF0E93C87D12434AE57FBC98 /* BinaryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CB6D6DFFB7469ACAE074915 /* BinaryManager.swift */; };
 		C4B28055FDBED20D6A3B8F64 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D537807F54D924BF7A0663C /* SettingsView.swift */; };
 		DAF7BB3AE14BAC340E2A546C /* ConnectedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3140577AA9AA634D656DC60F /* ConnectedView.swift */; };
 /* End PBXBuildFile section */
@@ -24,6 +25,7 @@
 		06BFFB7E0A6127FD9D19527A /* Macrcpy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Macrcpy.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		160A6B27234B5E67634D7210 /* DeviceListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceListView.swift; sourceTree = "<group>"; };
 		1FA98ABF0A8BAC9E0EA403CE /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		2CB6D6DFFB7469ACAE074915 /* BinaryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BinaryManager.swift; sourceTree = "<group>"; };
 		2DB7A9CEC0A561305DB9201B /* ScrcpyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrcpyManager.swift; sourceTree = "<group>"; };
 		3140577AA9AA634D656DC60F /* ConnectedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectedView.swift; sourceTree = "<group>"; };
 		3FFF68B812EFB4406E9B30B9 /* ADBManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ADBManager.swift; sourceTree = "<group>"; };
@@ -58,6 +60,7 @@
 				3FFF68B812EFB4406E9B30B9 /* ADBManager.swift */,
 				1FA98ABF0A8BAC9E0EA403CE /* AppState.swift */,
 				7BAFF21B068FDA7A811E3752 /* Assets.xcassets */,
+				2CB6D6DFFB7469ACAE074915 /* BinaryManager.swift */,
 				3140577AA9AA634D656DC60F /* ConnectedView.swift */,
 				69DEA0E5A28C17E403F3DD88 /* ContentView.swift */,
 				160A6B27234B5E67634D7210 /* DeviceListView.swift */,
@@ -143,6 +146,7 @@
 			files = (
 				5B45023F95D4CDED34BB1B29 /* ADBManager.swift in Sources */,
 				778DA89CA6A5BA008053D4DD /* AppState.swift in Sources */,
+				AF0E93C87D12434AE57FBC98 /* BinaryManager.swift in Sources */,
 				DAF7BB3AE14BAC340E2A546C /* ConnectedView.swift in Sources */,
 				669EEAF1A0F0FD66CCBE9AC2 /* ContentView.swift in Sources */,
 				2DA272B4DCDB4BC7C7F652EA /* DeviceListView.swift in Sources */,

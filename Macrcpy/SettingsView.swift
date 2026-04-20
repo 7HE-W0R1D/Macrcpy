@@ -16,14 +16,13 @@ struct SettingsView: View {
     @AppStorage("audioBitrateKbps")    private var audioBitrateKbps: Int = 128
 
     // ── Connection ─────────────────────────────────────────────────────────
-    @AppStorage("preferWireless")      private var preferWireless: Bool  = false
     @AppStorage("tcpPort")             private var tcpPort: Int           = 5555
 
     // ── Recording ──────────────────────────────────────────────────────────
     @AppStorage("autoRecord")          private var autoRecord: Bool      = false
     @AppStorage("recordingPath")       private var recordingPath: String = ""
 
-    // ── Paths ──────────────────────────────────────────────────────────────
+    // ── Paths (custom overrides) ───────────────────────────────────────────
     @AppStorage("scrcpyBinaryPath")    private var scrcpyBinaryPath: String = ""
     @AppStorage("adbBinaryPath")       private var adbBinaryPath: String    = ""
 
@@ -32,20 +31,20 @@ struct SettingsView: View {
             deviceSection
             videoSection
             audioSection
-            connectionSection
             recordingSection
-            binariesSection
+            toolsSection
+            customPathsSection
         }
         .formStyle(.grouped)
         .frame(minWidth: 480, idealWidth: 520, maxWidth: 580)
-        .frame(minHeight: 540)
+        .frame(minHeight: 560)
     }
 
-    // MARK: - Sections
+    // MARK: - Device
 
     private var deviceSection: some View {
         Section("Device") {
-            Toggle("Auto-connect to last used device", isOn: $autoConnect)
+            Toggle("Auto-connect to last used device on launch", isOn: $autoConnect)
 
             LabeledContent("Last Connected") {
                 let serial = UserDefaults.standard.string(forKey: "lastConnectedSerial") ?? ""
@@ -54,8 +53,16 @@ struct SettingsView: View {
                     .fontDesign(.monospaced)
                     .foregroundStyle(.secondary)
             }
+
+            LabeledContent("TCP/IP Port") {
+                TextField("Port", value: $tcpPort, format: .number)
+                    .frame(width: 68)
+                    .textFieldStyle(.roundedBorder)
+            }
         }
     }
+
+    // MARK: - Video
 
     private var videoSection: some View {
         Section("Video") {
@@ -95,6 +102,8 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Audio
+
     private var audioSection: some View {
         Section("Audio") {
             Toggle("Forward device audio to Mac", isOn: $forwardAudio)
@@ -115,17 +124,7 @@ struct SettingsView: View {
         }
     }
 
-    private var connectionSection: some View {
-        Section("Connection") {
-            Toggle("Prefer wireless (Wi-Fi) devices", isOn: $preferWireless)
-
-            LabeledContent("TCP/IP Port") {
-                TextField("Port", value: $tcpPort, format: .number)
-                    .frame(width: 68)
-                    .textFieldStyle(.roundedBorder)
-            }
-        }
-    }
+    // MARK: - Recording
 
     private var recordingSection: some View {
         Section("Recording") {
@@ -135,128 +134,196 @@ struct SettingsView: View {
                 LabeledContent("Save folder") {
                     HStack(spacing: 8) {
                         if recordingPath.isEmpty {
-                            Text("Not set")
-                                .foregroundStyle(.secondary.opacity(0.7))
+                            Text("Not set").foregroundStyle(.secondary.opacity(0.7))
                         } else {
-                            Image(systemName: "folder.fill")
-                                .foregroundStyle(Color.accentColor)
-                                .font(.callout)
+                            Image(systemName: "folder.fill").foregroundStyle(Color.accentColor).font(.callout)
                             Text(URL(fileURLWithPath: recordingPath).lastPathComponent)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                                 .truncationMode(.middle)
                                 .frame(maxWidth: 160, alignment: .leading)
                         }
+                        Button("Choose…") { pickFolder { recordingPath = $0.path } }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                    }
+                }
+            }
+        }
+    }
 
-                        Button("Choose…") {
-                            pickFolder { recordingPath = $0.path }
+    // MARK: - Tools (download / update)
+
+    private var toolsSection: some View {
+        let bm = appState.binaries
+        return Section {
+            // ── scrcpy row ────────────────────────────────────────────────
+            LabeledContent("scrcpy") {
+                HStack(spacing: 10) {
+                    // Installed version
+                    Group {
+                        if let v = bm.scrcpyInstalled {
+                            Text("v\(v)")
+                        } else {
+                            Text("Not installed").foregroundStyle(.red)
+                        }
+                    }
+                    .font(.callout)
+                    .fontDesign(.monospaced)
+                    .foregroundStyle(.secondary)
+
+                    // Latest badge
+                    if let latest = bm.scrcpyLatest {
+                        if bm.scrcpyUpdateAvailable {
+                            Text("→ \(latest) available")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(.orange.opacity(0.12), in: Capsule())
+                        } else if bm.scrcpyInstalled != nil {
+                            Text("Up to date")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                        }
+                    }
+
+                    Spacer(minLength: 0)
+
+                    if bm.isDownloadingScrcpy {
+                        ProgressView().scaleEffect(0.7)
+                        Text(bm.scrcpyInstalled == nil ? "Downloading…" : "Updating…")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Button(bm.scrcpyInstalled == nil ? "Download" :
+                               bm.scrcpyUpdateAvailable ? "Update" : "Reinstall") {
+                            bm.downloadScrcpy()
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
                     }
                 }
             }
-        }
-    }
 
-    private var binariesSection: some View {
-        Section {
-            binaryRow(
-                label: "scrcpy",
-                path: $scrcpyBinaryPath,
-                isDetected: appState.isScrcpyAvailable
-            )
-            binaryRow(
-                label: "adb",
-                path: $adbBinaryPath,
-                isDetected: appState.isAdbAvailable
-            )
+            // ── adb row ───────────────────────────────────────────────────
+            LabeledContent("adb") {
+                HStack(spacing: 10) {
+                    Group {
+                        if let v = bm.adbInstalled {
+                            Text(v)
+                        } else {
+                            Text("Not installed").foregroundStyle(.red)
+                        }
+                    }
+                    .font(.callout)
+                    .fontDesign(.monospaced)
+                    .foregroundStyle(.secondary)
 
-            if !appState.isScrcpyAvailable || !appState.isAdbAvailable {
-                HStack(spacing: 6) {
-                    Image(systemName: "info.circle.fill")
-                        .foregroundStyle(.blue)
-                        .font(.callout)
-                    Text("Install missing tools: **brew install scrcpy**")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+
+                    if bm.isDownloadingAdb {
+                        ProgressView().scaleEffect(0.7)
+                        Text(bm.adbInstalled == nil ? "Downloading…" : "Updating…")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Button(bm.adbInstalled == nil ? "Download" : "Update") {
+                            bm.downloadAdb()
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
                 }
             }
+
+            // ── Error banner ──────────────────────────────────────────────
+            if let err = bm.downloadError {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange).font(.caption)
+                    Text(err).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+
+            // ── Refresh button ────────────────────────────────────────────
+            HStack {
+                Spacer()
+                Button("Check for Updates") {
+                    bm.checkForUpdates()
+                    bm.refreshInstalledVersions()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+
         } header: {
-            Text("Tool Paths")
+            Text("Tools")
         } footer: {
-            Text("Leave blank to use the auto-detected Homebrew binaries.")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            HStack(spacing: 4) {
+                Image(systemName: "folder")
+                Text(bm.binDir.path)
+                    .font(.caption)
+                    .fontDesign(.monospaced)
+            }
+            .foregroundStyle(.tertiary)
+            .font(.caption)
         }
     }
 
-    // MARK: - Reusable Binary Row
+    // MARK: - Custom Binary Paths (override)
+
+    private var customPathsSection: some View {
+        Section {
+            binaryPathRow(label: "scrcpy path", path: $scrcpyBinaryPath)
+            binaryPathRow(label: "adb path",    path: $adbBinaryPath)
+        } header: {
+            Text("Custom Paths (optional)")
+        } footer: {
+            Text("Leave blank to use auto-managed binaries from the Tools section above.")
+                .font(.caption).foregroundStyle(.tertiary)
+        }
+    }
 
     @ViewBuilder
-    private func binaryRow(
-        label: String,
-        path: Binding<String>,
-        isDetected: Bool
-    ) -> some View {
+    private func binaryPathRow(label: String, path: Binding<String>) -> some View {
         LabeledContent(label) {
             HStack(spacing: 8) {
-                Image(systemName: isDetected ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .foregroundStyle(isDetected ? .green : .red)
-                    .font(.callout)
-
-                Group {
-                    if path.wrappedValue.isEmpty {
-                        Text(isDetected ? "Auto-detected" : "Not found")
-                            .foregroundStyle(isDetected ? Color.secondary : Color.red)
-                    } else {
-                        Text(URL(fileURLWithPath: path.wrappedValue).lastPathComponent)
-                            .foregroundStyle(.secondary)
-                            .fontDesign(.monospaced)
-                    }
+                if path.wrappedValue.isEmpty {
+                    Text("Auto").foregroundStyle(.secondary.opacity(0.6)).font(.callout)
+                } else {
+                    Text(URL(fileURLWithPath: path.wrappedValue).lastPathComponent)
+                        .foregroundStyle(.secondary)
+                        .fontDesign(.monospaced)
+                        .font(.callout)
                 }
-                .font(.callout)
-
                 Spacer(minLength: 0)
-
-                Button("Browse…") {
-                    pickFile { path.wrappedValue = $0.path }
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.mini)
-
+                Button("Browse…") { pickFile { path.wrappedValue = $0.path } }
+                    .buttonStyle(.bordered).controlSize(.mini)
                 if !path.wrappedValue.isEmpty {
-                    Button {
-                        path.wrappedValue = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.tertiary)
+                    Button { path.wrappedValue = "" } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
                     }
-                    .buttonStyle(.plain)
-                    .controlSize(.mini)
+                    .buttonStyle(.plain).controlSize(.mini)
                     .help("Clear custom path")
                 }
             }
         }
     }
 
-    // MARK: - Panel Helpers
+    // MARK: - Helpers
 
     private func pickFolder(completion: @escaping (URL) -> Void) {
         let panel = NSOpenPanel()
-        panel.canChooseDirectories  = true
-        panel.canChooseFiles        = false
-        panel.allowsMultipleSelection = false
-        panel.prompt = "Choose Folder"
+        panel.canChooseDirectories = true; panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false; panel.prompt = "Choose Folder"
         if panel.runModal() == .OK, let url = panel.url { completion(url) }
     }
 
     private func pickFile(completion: @escaping (URL) -> Void) {
         let panel = NSOpenPanel()
-        panel.canChooseFiles        = true
-        panel.canChooseDirectories  = false
-        panel.allowsMultipleSelection = false
-        panel.prompt = "Select"
+        panel.canChooseFiles = true; panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false; panel.prompt = "Select"
         if panel.runModal() == .OK, let url = panel.url { completion(url) }
     }
 }

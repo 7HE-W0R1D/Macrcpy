@@ -3,8 +3,9 @@ import Foundation
 /// Manages the scrcpy child process lifecycle.
 ///
 /// Wireless flow (TCP/IP devices):
-///   1. `adb connect <ip>:<port>`  — establishes the ADB over TCP connection
-///   2. `scrcpy -K -s <ip>:<port>` — mirrors the screen with keyboard forwarding
+///   1. `adb connect <ip>:<port>`  — best-effort TCP connect (ignored if it fails)
+///   2. `adb devices`              — resolve the real serial to use
+///   3. `scrcpy -K -s <serial>`   — mirror with keyboard forwarding
 class ScrcpyManager {
 
     private weak var appState: AppState?
@@ -26,12 +27,10 @@ class ScrcpyManager {
         appState.adbManager.resetAutoConnect()
 
         if device.connectionType == .tcpip {
-            // Wireless: adb connect first, then scrcpy
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 self?.adbConnect(device: device)
             }
         } else {
-            // USB: jump straight to scrcpy
             DispatchQueue.global(qos: .userInitiated).async { [weak self] in
                 self?.launch(device: device)
             }
@@ -43,51 +42,94 @@ class ScrcpyManager {
         if process == nil { cleanup() }
     }
 
-    // MARK: - Step 1: adb connect (wireless only)
+    // MARK: - Step 1: adb connect + device resolution
 
     private func adbConnect(device: ADBDevice) {
         guard let appState = appState else { return }
 
         let adbPath = appState.resolvedAdbPath()
 
+        // ── 1a. Run adb connect (best-effort, ignore result) ─────────────────
+        let connectProc = Process()
+        connectProc.executableURL = URL(fileURLWithPath: adbPath)
+        connectProc.arguments     = ["connect", device.serial]
+        let connectPipe = Pipe()
+        connectProc.standardOutput = connectPipe
+        connectProc.standardError  = connectPipe
+
+        do {
+            try connectProc.run()
+            connectProc.waitUntilExit()
+            let data   = connectPipe.fileHandleForReading.readDataToEndOfFile()
+            let output = (String(data: data, encoding: .utf8) ?? "")
+                            .trimmingCharacters(in: .whitespacesAndNewlines)
+            DispatchQueue.main.async {
+                appState.scrcpyOutput += "adb connect → \(output)\n\n"
+            }
+        } catch {
+            DispatchQueue.main.async {
+                appState.scrcpyOutput += "adb connect error: \(error.localizedDescription)\n\n"
+            }
+        }
+
+        // ── 1b. Resolve the best available ADB device ─────────────────────────
+        // Prefer user's serial if it shows up in `adb devices`.
+        // Fall back to the only connected device (handles ADB-TLS, USB, etc.)
+        let target = resolveDevice(preferred: device, adbPath: adbPath)
+
+        if target.serial != device.serial {
+            DispatchQueue.main.async {
+                appState.scrcpyOutput += "→ Using device: \(target.serial)\n\n"
+            }
+        }
+
+        // ── 1c. Launch scrcpy ─────────────────────────────────────────────────
+        launch(device: target)
+    }
+
+    /// Runs `adb devices` and returns the best serial to use.
+    ///
+    /// Priority:
+    ///   1. `preferred.serial` if it appears in the device list
+    ///   2. The only connected device (any type) as a fallback
+    ///   3. `preferred` unchanged if nothing was found
+    private func resolveDevice(preferred: ADBDevice, adbPath: String) -> ADBDevice {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: adbPath)
-        proc.arguments     = ["connect", device.serial]   // e.g. ["connect", "100.64.1.1:5555"]
-
+        proc.arguments     = ["devices"]
         let pipe = Pipe()
         proc.standardOutput = pipe
         proc.standardError  = pipe
 
-        do {
-            try proc.run()
-            proc.waitUntilExit()
-        } catch {
-            DispatchQueue.main.async {
-                appState.connectionStatus = .failed(
-                    message: "Could not run adb:\n\(error.localizedDescription)"
-                )
-            }
-            return
+        guard (try? proc.run()) != nil else { return preferred }
+        proc.waitUntilExit()
+
+        let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(),
+                            encoding: .utf8) ?? ""
+
+        // Each "device" line is: "<serial>\tdevice"
+        var found: [String] = []
+        for line in output.components(separatedBy: "\n") {
+            let cols = line.components(separatedBy: "\t")
+            guard cols.count >= 2,
+                  cols[1].trimmingCharacters(in: .whitespaces) == "device" else { continue }
+            let serial = cols[0].trimmingCharacters(in: .whitespaces)
+            guard !serial.isEmpty else { continue }
+            found.append(serial)
         }
 
-        let data   = pipe.fileHandleForReading.readDataToEndOfFile()
-        let output = (String(data: data, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        // Preferred serial is directly available
+        if found.contains(preferred.serial) { return preferred }
 
-        DispatchQueue.main.async {
-            appState.scrcpyOutput = "adb connect → \(output)\n\n"
+        // Exactly one device available — use it regardless of type
+        if found.count == 1 {
+            let s   = found[0]
+            let tcp = s.contains(":") || s.hasPrefix("adb-")   // ip:port or ADB-TLS mDNS
+            return ADBDevice(serial: s, model: "", connectionType: tcp ? .tcpip : .usb)
         }
 
-        // ADB prints "connected to X" or "already connected to X" on success.
-        let success = output.lowercased().contains("connected to")
-        if success {
-            launch(device: device)
-        } else {
-            DispatchQueue.main.async {
-                appState.connectionStatus = .failed(
-                    message: "ADB connect failed:\n\(output)"
-                )
-            }
-        }
+        // Multiple devices but none match — pass preferred and let scrcpy report
+        return preferred
     }
 
     // MARK: - Step 2: scrcpy
@@ -101,7 +143,7 @@ class ScrcpyManager {
         // ── Build argument list ───────────────────────────────────────────────
         var args: [String] = ["-s", device.serial]
 
-        // Keyboard forwarding (-K) — standard for wireless usage
+        // Keyboard forwarding (-K)
         args.append("-K")
 
         // Video
@@ -137,16 +179,26 @@ class ScrcpyManager {
         proc.executableURL = URL(fileURLWithPath: scrcpyPath)
         proc.arguments     = args
 
+        // Inject ADB path — scrcpy uses the ADB env var for all internal adb calls.
+        // Also extend PATH so any adb sub-process can be found.
+        var env = ProcessInfo.processInfo.environment
+        env["ADB"]  = appState.resolvedAdbPath()
+        env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:\(env["PATH"] ?? "/usr/bin:/bin")"
+        proc.environment = env
+
         let pipe = Pipe()
         proc.standardOutput = pipe
         proc.standardError  = pipe
         self.process    = proc
         self.outputPipe = pipe
 
-        // Stream output
+        // Track whether scrcpy produced any output
+        var hadOutput = false
+
         pipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
             guard !data.isEmpty, let str = String(data: data, encoding: .utf8) else { return }
+            hadOutput = true
             DispatchQueue.main.async {
                 guard let appState = self?.appState else { return }
                 appState.scrcpyOutput += str
@@ -156,12 +208,20 @@ class ScrcpyManager {
             }
         }
 
-        // Detect exit
+        // Only report failure if scrcpy produced zero output (launch-level error)
         proc.terminationHandler = { [weak self] _ in
-            DispatchQueue.main.async { self?.cleanup() }
+            DispatchQueue.main.async {
+                if hadOutput {
+                    self?.cleanup()   // normal exit — log already visible
+                } else {
+                    self?.appState?.connectionStatus = .failed(
+                        message: "scrcpy exited with no output.\nCheck that scrcpy is installed and the device is reachable."
+                    )
+                    self?.cleanupProcess()
+                }
+            }
         }
 
-        // ── Run ───────────────────────────────────────────────────────────────
         do {
             try proc.run()
             DispatchQueue.main.async {
@@ -184,6 +244,12 @@ class ScrcpyManager {
         process    = nil
         outputPipe = nil
         appState?.connectionStatus = .idle
+    }
+
+    private func cleanupProcess() {
+        outputPipe?.fileHandleForReading.readabilityHandler = nil
+        process    = nil
+        outputPipe = nil
     }
 
     deinit { process?.terminate() }

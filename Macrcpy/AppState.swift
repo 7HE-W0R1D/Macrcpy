@@ -96,39 +96,22 @@ class AppState: ObservableObject {
     @Published var scrcpyOutput: String = ""
 
     // MARK: Managers (set up in init to avoid circular references)
-    var adbManager: ADBManager!
+    let binaries     = BinaryManager()
+    var adbManager:   ADBManager!
     var scrcpyManager: ScrcpyManager!
 
     init() {
         adbManager    = ADBManager(appState: self)
         scrcpyManager = ScrcpyManager(appState: self)
+        binaries.refreshInstalledVersions()
+        binaries.checkForUpdates()
     }
 
-    // MARK: Tool path resolution
+    // MARK: Tool path resolution (delegated to BinaryManager)
 
-    func resolvedScrcpyPath() -> String {
-        let custom = UserDefaults.standard.string(forKey: "scrcpyBinaryPath") ?? ""
-        if !custom.isEmpty, FileManager.default.fileExists(atPath: custom) { return custom }
-        for p in ["/opt/homebrew/bin/scrcpy", "/usr/local/bin/scrcpy"] {
-            if FileManager.default.fileExists(atPath: p) { return p }
-        }
-        return "scrcpy"
-    }
+    func resolvedScrcpyPath() -> String { binaries.scrcpyPath() }
+    func resolvedAdbPath()    -> String { binaries.adbPath() }
 
-    func resolvedAdbPath() -> String {
-        let custom = UserDefaults.standard.string(forKey: "adbBinaryPath") ?? ""
-        if !custom.isEmpty, FileManager.default.fileExists(atPath: custom) { return custom }
-        for p in ["/opt/homebrew/bin/adb", "/usr/local/bin/adb"] {
-            if FileManager.default.fileExists(atPath: p) { return p }
-        }
-        return "adb"
-    }
-
-    var isScrcpyAvailable: Bool {
-        FileManager.default.isExecutableFile(atPath: resolvedScrcpyPath())
-    }
-
-    var isAdbAvailable: Bool {
-        FileManager.default.isExecutableFile(atPath: resolvedAdbPath())
-    }
+    var isScrcpyAvailable: Bool { binaries.isScrcpyAvailable }
+    var isAdbAvailable:    Bool { binaries.isAdbAvailable }
 }
