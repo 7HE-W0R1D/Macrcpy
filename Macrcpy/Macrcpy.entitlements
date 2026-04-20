@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  App Sandbox is intentionally disabled so the app can:
+	    • Launch arbitrary executables (scrcpy, adb)
+	    • Read/write to user-chosen folders (recordings)
+	  This means the app cannot be distributed via the Mac App Store
+	  without an entitlements exception.
+	-->
+	<key>com.apple.security.app-sandbox</key>
+	<false/>
+</dict>
+</plist>
