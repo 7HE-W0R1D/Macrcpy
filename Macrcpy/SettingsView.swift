@@ -15,8 +15,14 @@ struct SettingsView: View {
     @AppStorage("forwardAudio")        private var forwardAudio: Bool    = true
     @AppStorage("audioBitrateKbps")    private var audioBitrateKbps: Int = 128
 
-    // ── Connection ─────────────────────────────────────────────────────────
-    @AppStorage("tcpPort")             private var tcpPort: Int           = 5555
+    // ── Input ──────────────────────────────────────────────────────────────
+    @AppStorage("forwardKeyboard")     private var forwardKeyboard: Bool = true
+    @AppStorage("forwardMouse")        private var forwardMouse: Bool    = false
+
+    // ── Virtual Display & Power ──────────────────────────────────────────────
+    @AppStorage("useNewDisplay")       private var useNewDisplay: Bool   = false
+    @AppStorage("newDisplaySpec")      private var newDisplaySpec: String = "1920x1080/300"
+    @AppStorage("powerOffOnClose")     private var powerOffOnClose: Bool = false
 
     // ── Recording ──────────────────────────────────────────────────────────
     @AppStorage("autoRecord")          private var autoRecord: Bool      = false
@@ -29,7 +35,9 @@ struct SettingsView: View {
     var body: some View {
         Form {
             deviceSection
+            inputSection
             videoSection
+            extraDisplaySection
             audioSection
             recordingSection
             toolsSection
@@ -54,11 +62,33 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            LabeledContent("TCP/IP Port") {
-                TextField("Port", value: $tcpPort, format: .number)
-                    .frame(width: 68)
-                    .textFieldStyle(.roundedBorder)
+        }
+    }
+
+    // MARK: - Input
+
+    private var inputSection: some View {
+        Section("Input") {
+            Toggle("Forward Keyboard (-K)", isOn: $forwardKeyboard)
+            Toggle("Forward Mouse (-M)", isOn: $forwardMouse)
+        }
+    }
+
+    // MARK: - Virtual Display & Power
+
+    private var extraDisplaySection: some View {
+        Section("Virtual Display & Power") {
+            Toggle("Use New Virtual Display", isOn: $useNewDisplay)
+            
+            if useNewDisplay {
+                LabeledContent("Resolution & DPI") {
+                    TextField("e.g. 1920x1080/300", text: $newDisplaySpec)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 140)
+                }
             }
+            
+            Toggle("Turn Screen Off on Close", isOn: $powerOffOnClose)
         }
     }
 

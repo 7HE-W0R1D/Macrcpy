@@ -143,8 +143,29 @@ class ScrcpyManager {
         // ── Build argument list ───────────────────────────────────────────────
         var args: [String] = ["-s", device.serial]
 
-        // Keyboard forwarding (-K)
-        args.append("-K")
+        // Input
+        let forwardKeyboard = defaults.object(forKey: "forwardKeyboard") as? Bool ?? true
+        if forwardKeyboard { args.append("-K") }
+
+        let forwardMouse = defaults.bool(forKey: "forwardMouse")
+        if forwardMouse { args.append("-M") }
+
+        // Virtual Display & Power
+        let useNewDisplay = defaults.bool(forKey: "useNewDisplay")
+        if useNewDisplay {
+            let spec = defaults.string(forKey: "newDisplaySpec") ?? "1920x1080/300"
+            let trimmedSpec = spec.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmedSpec.isEmpty {
+                args.append("--new-display=\(trimmedSpec)")
+            } else {
+                args.append("--new-display")
+            }
+        }
+
+        let powerOffOnClose = defaults.bool(forKey: "powerOffOnClose")
+        if powerOffOnClose {
+            args.append("--power-off-on-close")
+        }
 
         // Video
         let resolution  = defaults.integer(forKey: "maxResolution").nonZero  ?? 1080
