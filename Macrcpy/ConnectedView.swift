@@ -199,3 +199,18 @@ struct FailedView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
+
+#Preview("Connected") {
+    ConnectedView()
+        .environmentObject(AppState())
+}
+
+#Preview("Connecting") {
+    ConnectingView()
+        .environmentObject(AppState())
+}
+
+#Preview("Failed") {
+    FailedView(message: "Could not connect to device.")
+        .environmentObject(AppState())
+}

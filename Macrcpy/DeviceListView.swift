@@ -109,3 +109,8 @@ struct DeviceRowView: View {
         }
     }
 }
+
+#Preview {
+    DeviceListView()
+        .environmentObject(AppState())
+}

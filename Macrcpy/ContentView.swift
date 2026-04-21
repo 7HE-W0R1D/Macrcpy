@@ -164,3 +164,8 @@ struct ContentView: View {
         return parts.count == 2 && Int(parts[1]) != nil
     }
 }
+
+#Preview {
+    ContentView()
+        .environmentObject(AppState())
+}

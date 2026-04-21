@@ -357,3 +357,8 @@ struct SettingsView: View {
         if panel.runModal() == .OK, let url = panel.url { completion(url) }
     }
 }
+
+#Preview {
+    SettingsView()
+        .environmentObject(AppState())
+}

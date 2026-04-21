@@ -124,3 +124,8 @@ struct EmptyStateView: View {
         return "Connect your Android phone via USB cable, or configure wireless ADB. Macrcpy will detect it automatically."
     }
 }
+
+#Preview {
+    EmptyStateView()
+        .environmentObject(AppState())
+}
