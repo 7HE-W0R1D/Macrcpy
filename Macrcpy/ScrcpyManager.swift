@@ -1,4 +1,5 @@
 import Foundation
+import Network
 
 /// Manages the scrcpy child process lifecycle.
 ///
@@ -49,42 +50,179 @@ class ScrcpyManager {
 
         let adbPath = appState.resolvedAdbPath()
 
-        // ── 1a. Run adb connect (best-effort, ignore result) ─────────────────
-        let connectProc = Process()
-        connectProc.executableURL = URL(fileURLWithPath: adbPath)
-        connectProc.arguments     = ["connect", device.serial]
-        let connectPipe = Pipe()
-        connectProc.standardOutput = connectPipe
-        connectProc.standardError  = connectPipe
+        // Helper to run `adb connect`
+        func runConnect(serial: String) -> String {
+            let proc = Process()
+            proc.executableURL = URL(fileURLWithPath: adbPath)
+            proc.arguments = ["connect", serial]
+            let pipe = Pipe()
+            proc.standardOutput = pipe
+            proc.standardError = pipe
+            do {
+                try proc.run()
+                proc.waitUntilExit()
+                let data = pipe.fileHandleForReading.readDataToEndOfFile()
+                return (String(data: data, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            } catch {
+                return "error: \(error.localizedDescription)"
+            }
+        }
 
-        do {
-            try connectProc.run()
-            connectProc.waitUntilExit()
-            let data   = connectPipe.fileHandleForReading.readDataToEndOfFile()
-            let output = (String(data: data, encoding: .utf8) ?? "")
-                            .trimmingCharacters(in: .whitespacesAndNewlines)
-            DispatchQueue.main.async {
-                appState.scrcpyOutput += "adb connect → \(output)\n\n"
-            }
-        } catch {
-            DispatchQueue.main.async {
-                appState.scrcpyOutput += "adb connect error: \(error.localizedDescription)\n\n"
-            }
+        // ── 1a. Run adb connect (best-effort, ignore result) ─────────────────
+        let output = runConnect(serial: device.serial)
+        DispatchQueue.main.async {
+            appState.scrcpyOutput += "adb connect → \(output)\n\n"
         }
 
         // ── 1b. Resolve the best available ADB device ─────────────────────────
-        // Prefer user's serial if it shows up in `adb devices`.
-        // Fall back to the only connected device (handles ADB-TLS, USB, etc.)
-        let target = resolveDevice(preferred: device, adbPath: adbPath)
-
-        if target.serial != device.serial {
-            DispatchQueue.main.async {
-                appState.scrcpyOutput += "→ Using device: \(target.serial)\n\n"
+        if let target = resolveDevice(preferred: device, adbPath: adbPath) {
+            if target.serial != device.serial {
+                DispatchQueue.main.async {
+                    appState.scrcpyOutput += "→ Using device: \(target.serial)\n\n"
+                }
             }
+            launch(device: target)
+            return
         }
 
-        // ── 1c. Launch scrcpy ─────────────────────────────────────────────────
-        launch(device: target)
+        // ── 1c. Native Port Scan Fallback ──────────────────────────────────────
+        let host = device.serial.components(separatedBy: ":").first ?? device.serial
+
+        DispatchQueue.main.async {
+            appState.scrcpyOutput += "→ Connection failed. Scanning ports on \(host) natively...\n\n"
+        }
+
+        Task {
+            let ports = await self.scanPortsNatively(host: host, range: 30000...49999, maxConcurrency: 500)
+            
+            if ports.isEmpty {
+                await MainActor.run {
+                    appState.connectionStatus = .failed(message: "No open ports found. Please enter hostname and port manually.")
+                }
+                return
+            }
+
+            let portsToTry = Array(ports.prefix(2))
+            await MainActor.run {
+                let portsString = portsToTry.map { String($0) }.joined(separator: ", ")
+                appState.scrcpyOutput += "→ Found ports: \(portsString)\n"
+            }
+
+            var foundTarget: ADBDevice? = nil
+            for port in portsToTry {
+                let scanSerial = "\(host):\(port)"
+                await MainActor.run {
+                    appState.scrcpyOutput += "→ Trying port \(port)...\n"
+                }
+                let out = runConnect(serial: scanSerial)
+                await MainActor.run {
+                    appState.scrcpyOutput += "adb connect \(port) → \(out)\n\n"
+                }
+
+                if let target = self.resolveDevice(preferred: ADBDevice(serial: scanSerial, model: "", connectionType: .tcpip), adbPath: adbPath) {
+                    foundTarget = target
+                    break
+                }
+            }
+
+            if let target = foundTarget {
+                await MainActor.run {
+                    appState.scrcpyOutput += "→ Successfully connected to \(target.serial)\n\n"
+                }
+                self.launch(device: target)
+            } else {
+                await MainActor.run {
+                    appState.connectionStatus = .failed(message: "Could not connect to any open port. Please enter hostname and port manually.")
+                }
+            }
+        }
+    }
+
+    // MARK: - Native Port Scanner
+    
+    private class ScanState: @unchecked Sendable {
+        var isFinished = false
+        let lock = NSLock()
+    }
+
+    private func scanPortsNatively(host: String, range: ClosedRange<UInt16>, maxConcurrency: Int) async -> [UInt16] {
+        var openPorts: [UInt16] = []
+        
+        await withTaskGroup(of: (UInt16, Bool).self) { group in
+            var index = range.lowerBound
+            
+            for _ in 0..<min(maxConcurrency, range.count) {
+                let port = index
+                group.addTask { return (port, await self.checkPort(host: host, port: port)) }
+                if index == range.upperBound { break }
+                index += 1
+            }
+            
+            for await (port, isOpen) in group {
+                if isOpen {
+                    openPorts.append(port)
+                    if openPorts.count >= 2 {
+                        group.cancelAll()
+                        break
+                    }
+                }
+                
+                if index <= range.upperBound, !group.isCancelled {
+                    let port = index
+                    group.addTask { return (port, await self.checkPort(host: host, port: port)) }
+                    index += 1
+                }
+            }
+        }
+        return openPorts.sorted()
+    }
+
+    private func checkPort(host: String, port: UInt16) async -> Bool {
+        return await withCheckedContinuation { continuation in
+            let hostEndpoint = NWEndpoint.Host(host)
+            guard let portEndpoint = NWEndpoint.Port(rawValue: port) else {
+                continuation.resume(returning: false)
+                return
+            }
+            let connection = NWConnection(host: hostEndpoint, port: portEndpoint, using: .tcp)
+            
+            let state = ScanState()
+            
+            connection.stateUpdateHandler = { newState in
+                state.lock.lock()
+                if state.isFinished {
+                    state.lock.unlock()
+                    return
+                }
+                switch newState {
+                case .ready:
+                    state.isFinished = true
+                    state.lock.unlock()
+                    connection.cancel()
+                    continuation.resume(returning: true)
+                case .failed(_), .cancelled:
+                    state.isFinished = true
+                    state.lock.unlock()
+                    continuation.resume(returning: false)
+                default:
+                    state.lock.unlock()
+                }
+            }
+            
+            connection.start(queue: DispatchQueue.global(qos: .userInitiated))
+            
+            DispatchQueue.global().asyncAfter(deadline: .now() + 0.4) {
+                state.lock.lock()
+                if state.isFinished {
+                    state.lock.unlock()
+                    return
+                }
+                state.isFinished = true
+                state.lock.unlock()
+                connection.cancel()
+                continuation.resume(returning: false)
+            }
+        }
     }
 
     /// Runs `adb devices` and returns the best serial to use.
@@ -92,8 +230,8 @@ class ScrcpyManager {
     /// Priority:
     ///   1. `preferred.serial` if it appears in the device list
     ///   2. The only connected device (any type) as a fallback
-    ///   3. `preferred` unchanged if nothing was found
-    private func resolveDevice(preferred: ADBDevice, adbPath: String) -> ADBDevice {
+    ///   3. `nil` if nothing was found
+    private func resolveDevice(preferred: ADBDevice, adbPath: String) -> ADBDevice? {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: adbPath)
         proc.arguments     = ["devices"]
@@ -101,7 +239,7 @@ class ScrcpyManager {
         proc.standardOutput = pipe
         proc.standardError  = pipe
 
-        guard (try? proc.run()) != nil else { return preferred }
+        guard (try? proc.run()) != nil else { return nil }
         proc.waitUntilExit()
 
         let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(),
@@ -128,8 +266,8 @@ class ScrcpyManager {
             return ADBDevice(serial: s, model: "", connectionType: tcp ? .tcpip : .usb)
         }
 
-        // Multiple devices but none match — pass preferred and let scrcpy report
-        return preferred
+        // Multiple devices but none match
+        return nil
     }
 
     // MARK: - Step 2: scrcpy
