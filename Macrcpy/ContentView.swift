@@ -8,6 +8,11 @@ struct ContentView: View {
     @State private var portInput: String = ""
     @FocusState private var inputFocused: Bool
 
+    private var nmapAvailable: Bool {
+        ["/opt/homebrew/bin/nmap", "/usr/local/bin/nmap", "/opt/local/bin/nmap", "/usr/bin/nmap"]
+            .contains { FileManager.default.fileExists(atPath: $0) }
+    }
+
     var body: some View {
         VStack(spacing: 16) {
             switch appState.connectionStatus {
@@ -85,6 +90,28 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 2)
+
+            if !nmapAvailable {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .font(.caption)
+                    Text("Port scanning requires nmap")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString("brew install nmap", forType: .string)
+                    } label: {
+                        Text("brew install nmap")
+                            .font(.system(.caption, design: .monospaced))
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.mini)
+                }
+                .padding(.horizontal, 2)
+            }
             
             Button(action: performConnect) {
                 Text("Connect")

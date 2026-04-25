@@ -198,36 +198,27 @@ class ScrcpyManager {
         UserDefaults.standard.set(dict, forKey: "historicalPorts")
     }
 
-    private func resolvedNmapPath() -> String {
-        if let bundlePath = Bundle.main.url(forResource: "nmap", withExtension: nil, subdirectory: "nmap_bundled/bin")?.path, FileManager.default.fileExists(atPath: bundlePath) {
-            return bundlePath
-        }
-        if let bundlePath = Bundle.main.url(forResource: "nmap", withExtension: nil)?.path, FileManager.default.fileExists(atPath: bundlePath) {
-            return bundlePath
-        }
-        if FileManager.default.fileExists(atPath: "/opt/homebrew/bin/nmap") { return "/opt/homebrew/bin/nmap" }
-        if FileManager.default.fileExists(atPath: "/usr/local/bin/nmap") { return "/usr/local/bin/nmap" }
-        return "/usr/bin/env nmap" // fallback
-    }
-
-    private func nmapDataDir() -> String? {
-        if let bundlePath = Bundle.main.url(forResource: "nmap", withExtension: nil, subdirectory: "nmap_bundled/share")?.path, FileManager.default.fileExists(atPath: bundlePath) {
-            return bundlePath
-        }
-        return nil
+    private func resolvedNmapPath() -> String? {
+        let candidates = [
+            "/opt/homebrew/bin/nmap",  // Homebrew on Apple Silicon
+            "/usr/local/bin/nmap",     // Homebrew on Intel
+            "/opt/local/bin/nmap",     // MacPorts
+            "/usr/bin/nmap",           // system fallback
+        ]
+        return candidates.first { FileManager.default.fileExists(atPath: $0) }
     }
 
     private func scanPortsWithNmap(host: String) async -> [UInt16] {
-        let nmapPath = resolvedNmapPath()
+        guard let nmapPath = resolvedNmapPath() else {
+            await MainActor.run {
+                appState?.scrcpyOutput += "→ nmap not found. Install it via: brew install nmap\n"
+            }
+            return []
+        }
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: nmapPath)
         proc.arguments = ["-p", "30000-49999", host]
-        
-        var env = ProcessInfo.processInfo.environment
-        if let dataDir = nmapDataDir() {
-            env["NMAPDIR"] = dataDir
-        }
-        proc.environment = env
+        proc.environment = ProcessInfo.processInfo.environment
         
         let pipe = Pipe()
         proc.standardOutput = pipe

@@ -18,7 +18,6 @@
 		AF0E93C87D12434AE57FBC98 /* BinaryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CB6D6DFFB7469ACAE074915 /* BinaryManager.swift */; };
 		C4B28055FDBED20D6A3B8F64 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D537807F54D924BF7A0663C /* SettingsView.swift */; };
 		DAF7BB3AE14BAC340E2A546C /* ConnectedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3140577AA9AA634D656DC60F /* ConnectedView.swift */; };
-		EEA3A277143B5ED5F2549937 /* nmap_bundled in Resources */ = {isa = PBXBuildFile; fileRef = 70E2A38BD46342B6E745A645 /* nmap_bundled */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -31,7 +30,6 @@
 		3140577AA9AA634D656DC60F /* ConnectedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectedView.swift; sourceTree = "<group>"; };
 		3FFF68B812EFB4406E9B30B9 /* ADBManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ADBManager.swift; sourceTree = "<group>"; };
 		69DEA0E5A28C17E403F3DD88 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		70E2A38BD46342B6E745A645 /* nmap_bundled */ = {isa = PBXFileReference; lastKnownFileType = folder; path = nmap_bundled; sourceTree = SOURCE_ROOT; };
 		7BAFF21B068FDA7A811E3752 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8606E28593214C5ADB1C744B /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
 		9D537807F54D924BF7A0663C /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -43,7 +41,6 @@
 		7E7EE5D6183D18650DFBF505 = {
 			isa = PBXGroup;
 			children = (
-				70E2A38BD46342B6E745A645 /* nmap_bundled */,
 				F50B1781AF702416B3C052C9 /* Macrcpy */,
 				ADA1259CE52563088FD0636E /* Products */,
 			);
@@ -108,6 +105,7 @@
 				LastUpgradeCheck = 1540;
 				TargetAttributes = {
 					3E3B9C1BD39A7C98513EB32C = {
+						DevelopmentTeam = 5XBNQPB8AW;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -137,7 +135,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				06AF9B49927D070299BC48F3 /* Assets.xcassets in Resources */,
-				EEA3A277143B5ED5F2549937 /* nmap_bundled in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -200,6 +197,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 5XBNQPB8AW;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -262,9 +260,11 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "Developer ID Application";
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 5XBNQPB8AW;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -292,6 +292,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Macrcpy/Macrcpy.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_APP_SANDBOX = NO;
 				INFOPLIST_FILE = Macrcpy/Info.plist;
