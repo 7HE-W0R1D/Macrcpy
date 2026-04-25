@@ -5,74 +5,94 @@ struct ContentView: View {
     @AppStorage("autoConnect") private var autoConnect: Bool = true
 
     @State private var ipInput: String = ""
-    @State private var showLog = false
+    @State private var portInput: String = ""
     @FocusState private var inputFocused: Bool
 
     var body: some View {
-        VStack(spacing: 10) {
-
-            // ── IP / hostname input ───────────────────────────────────────────
-            TextField("IP or hostname  (e.g. 100.64.x.x)", text: $ipInput)
-                .textFieldStyle(.roundedBorder)
-                .font(.system(.body, design: .monospaced))
-                .controlSize(.large)
-                .onSubmit { performConnect() }
-                .disabled(
-                    appState.connectionStatus.isRunning ||
-                    appState.connectionStatus.isConnecting
-                )
-
-            // ── Main button ───────────────────────────────────────────────────
-            actionButton
-
-            // ── Log (hidden until there's output; auto-opens on failure) ─────
-            if !appState.scrcpyOutput.isEmpty {
-                DisclosureGroup(isExpanded: $showLog) {
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            Text(appState.scrcpyOutput)
-                                .font(.system(.caption2, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .textSelection(.enabled)
-                                .padding(8)
-                                .id("logBottom")
-                        }
-                        .frame(height: 140)
-                        .background(Color(NSColor.textBackgroundColor))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                        .onChange(of: appState.scrcpyOutput) { _, _ in
-                            proxy.scrollTo("logBottom", anchor: .bottom)
-                        }
-                    }
-                    .padding(.top, 4)
-                } label: {
-                    HStack(spacing: 4) {
-                        if case .failed = appState.connectionStatus {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.orange)
-                                .font(.caption)
-                        }
-                        Text("Log")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+        VStack(spacing: 16) {
+            switch appState.connectionStatus {
+            case .idle, .failed:
+                inputView
+                
+            case .connecting:
+                ProgressView()
+                    .scaleEffect(1.2)
+                    .padding(.bottom, 4)
+                Text("Connecting to your phone...")
+                    .foregroundStyle(.secondary)
+                    .font(.callout)
+                    
+            case .scanning:
+                ProgressView()
+                    .scaleEffect(1.2)
+                    .padding(.bottom, 4)
+                Text("Scanning ports... This can take up to 2 minutes")
+                    .foregroundStyle(.secondary)
+                    .font(.callout)
+                    
+            case .running:
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 32))
+                    .foregroundStyle(.green)
+                    .padding(.bottom, 4)
+                Text("Connected")
+                    .font(.headline)
+                
+                Button("Disconnect") {
+                    appState.scrcpyManager.disconnect()
                 }
+                .buttonStyle(.bordered)
+                .tint(.red)
+                .controlSize(.large)
+                .padding(.top, 8)
             }
         }
-        .padding(20)
-        .frame(width: 310)
-        .fixedSize()
+        .padding(24)
+        .frame(width: 340, height: 200)
         .onAppear(perform: onLaunch)
         .onChange(of: appState.connectionStatus.animationTag) { _, tag in
             switch tag {
             case "failed":
-                showLog = true
-            case "idle":
-                showLog = false
+                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
             default:
                 break
             }
+        }
+    }
+
+    // MARK: - Input View
+    
+    @ViewBuilder
+    private var inputView: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 8) {
+                TextField("IP Address", text: $ipInput)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(.body, design: .monospaced))
+                    .focused($inputFocused)
+                    .onSubmit { performConnect() }
+                
+                TextField("Port (opt)", text: $portInput)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(.body, design: .monospaced))
+                    .frame(width: 100)
+                    .onSubmit { performConnect() }
+            }
+            .controlSize(.large)
+            
+            Toggle("Auto-connect next time", isOn: $autoConnect)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 2)
+            
+            Button(action: performConnect) {
+                Text("Connect")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .keyboardShortcut(.return, modifiers: [])
         }
     }
 
@@ -87,50 +107,13 @@ struct ContentView: View {
 
         let saved = UserDefaults.standard.string(forKey: "lastConnectedSerial") ?? ""
         ipInput = stripPort(saved)
+        portInput = getPort(saved)
 
         // Auto-connect to the last device if the setting is on
         guard autoConnect, !saved.isEmpty else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-            performConnect()
-        }
-    }
-
-    // MARK: - Button
-
-    @ViewBuilder
-    private var actionButton: some View {
-        switch appState.connectionStatus {
-
-        case .idle, .failed:
-            Button(action: performConnect) {
-                Text("Connect")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .keyboardShortcut(.return, modifiers: [])
-
-        case .connecting:
-            Button {} label: {
-                HStack(spacing: 8) {
-                    ProgressView().scaleEffect(0.7)
-                    Text("Connecting…")
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
-            .disabled(true)
-
-        case .running:
-            Button("Disconnect") {
-                appState.scrcpyManager.disconnect()
-            }
-            .buttonStyle(.bordered)
-            .tint(.red)
-            .controlSize(.large)
-            .frame(maxWidth: .infinity)
-        }
+        
+        // Immediately perform connect so the state changes to .connecting instantly, avoiding UI flash
+        performConnect()
     }
 
     // MARK: - Connect
@@ -141,11 +124,22 @@ struct ContentView: View {
         }
         guard case .idle = appState.connectionStatus else { return }
 
-        let raw = ipInput.trimmingCharacters(in: .whitespaces)
-        guard !raw.isEmpty else { return }
+        let rawIp = ipInput.trimmingCharacters(in: .whitespaces)
+        guard !rawIp.isEmpty else { return }
 
         inputFocused = false
-        let serial = hasExplicitPort(raw) ? raw : "\(raw):5555"
+        
+        let serial: String
+        if hasExplicitPort(rawIp) {
+            serial = rawIp
+        } else {
+            let p = portInput.trimmingCharacters(in: .whitespaces)
+            if !p.isEmpty {
+                serial = "\(rawIp):\(p)"
+            } else {
+                serial = "\(rawIp):5555"
+            }
+        }
 
         let device = ADBDevice(serial: serial, model: "", connectionType: .tcpip)
         appState.scrcpyManager.connect(device: device)
@@ -157,6 +151,12 @@ struct ContentView: View {
         let parts = serial.components(separatedBy: ":")
         if parts.count == 2, Int(parts[1]) != nil { return parts[0] }
         return serial
+    }
+    
+    private func getPort(_ serial: String) -> String {
+        let parts = serial.components(separatedBy: ":")
+        if parts.count == 2, Int(parts[1]) != nil { return parts[1] }
+        return ""
     }
 
     private func hasExplicitPort(_ s: String) -> Bool {

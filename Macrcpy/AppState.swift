@@ -50,6 +50,7 @@ struct ADBDevice: Identifiable, Equatable, Hashable {
 enum ConnectionStatus {
     case idle
     case connecting
+    case scanning
     case running(device: ADBDevice)
     case failed(message: String)
 
@@ -60,6 +61,7 @@ enum ConnectionStatus {
 
     var isConnecting: Bool {
         if case .connecting = self { return true }
+        if case .scanning = self { return true }
         return false
     }
 
@@ -73,11 +75,11 @@ enum ConnectionStatus {
         return nil
     }
 
-    /// Stable string used as animation key.
     var animationTag: String {
         switch self {
         case .idle:             return "idle"
         case .connecting:       return "connecting"
+        case .scanning:         return "scanning"
         case .running(let d):   return "running-\(d.serial)"
         case .failed:           return "failed"
         }

@@ -3,6 +3,8 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var appState: AppState
 
+    @State private var showLog = false
+
     // ── Device ─────────────────────────────────────────────────────────────
     @AppStorage("autoConnect")         private var autoConnect: Bool   = true
 
@@ -34,6 +36,7 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            logSection
             deviceSection
             inputSection
             videoSection
@@ -46,6 +49,36 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(minWidth: 480, idealWidth: 520, maxWidth: 580)
         .frame(minHeight: 560)
+    }
+
+    // MARK: - Log
+
+    private var logSection: some View {
+        Section("Log") {
+            Button(showLog ? "Hide Log" : "Show Log") {
+                withAnimation { showLog.toggle() }
+            }
+            if showLog {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        Text(appState.scrcpyOutput)
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                            .padding(8)
+                            .id("logBottom")
+                    }
+                    .frame(height: 200)
+                    .background(Color(NSColor.textBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .onChange(of: appState.scrcpyOutput) { _, _ in
+                        proxy.scrollTo("logBottom", anchor: .bottom)
+                    }
+                }
+                .padding(.top, 4)
+            }
+        }
     }
 
     // MARK: - Device

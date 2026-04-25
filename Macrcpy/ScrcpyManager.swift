@@ -129,6 +129,7 @@ class ScrcpyManager {
             
             // Fallback to nmap scan
             await MainActor.run {
+                appState.connectionStatus = .scanning
                 appState.scrcpyOutput += "→ Historical ports failed. Scanning ports on \(host) with nmap (this may take up to 90 seconds)...\n\n"
             }
             
