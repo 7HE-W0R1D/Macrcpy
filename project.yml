@@ -20,6 +20,8 @@ targets:
     platform: macOS
     sources:
       - path: Macrcpy
+      - path: nmap_bundled
+        type: folder
     settings:
       base:
         PRODUCT_NAME: Macrcpy

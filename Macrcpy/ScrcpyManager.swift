@@ -85,19 +85,58 @@ class ScrcpyManager {
             return
         }
 
-        // ── 1c. Native Port Scan Fallback ──────────────────────────────────────
+        // ── 1c. Historical & Nmap Scan Fallback ───────────────────────────────
         let host = device.serial.components(separatedBy: ":").first ?? device.serial
 
-        DispatchQueue.main.async {
-            appState.scrcpyOutput += "→ Connection failed. Scanning ports on \(host) natively...\n\n"
-        }
-
         Task {
-            let ports = await self.scanPortsNatively(host: host, range: 30000...49999, maxConcurrency: 500)
+            var foundTarget: ADBDevice? = nil
+            
+            // Try historical ports first
+            let history = self.getHistoricalPorts(host: host)
+            if !history.isEmpty {
+                await MainActor.run {
+                    appState.scrcpyOutput += "→ Connection failed. Trying historical ports: \(history.map { String($0) }.joined(separator: ", "))...\n\n"
+                }
+                
+                for port in history {
+                    let scanSerial = "\(host):\(port)"
+                    await MainActor.run {
+                        appState.scrcpyOutput += "→ Trying historical port \(port)...\n"
+                    }
+                    let out = runConnect(serial: scanSerial)
+                    await MainActor.run {
+                        appState.scrcpyOutput += "adb connect \(port) → \(out)\n\n"
+                    }
+                    
+                    if let target = self.resolveDevice(preferred: ADBDevice(serial: scanSerial, model: "", connectionType: .tcpip), adbPath: adbPath) {
+                        foundTarget = target
+                        break
+                    }
+                }
+            }
+            
+            if let target = foundTarget {
+                await MainActor.run {
+                    appState.scrcpyOutput += "→ Successfully connected to \(target.serial)\n\n"
+                }
+                let portStr = target.serial.components(separatedBy: ":").last ?? ""
+                if let port = UInt16(portStr) {
+                    self.saveHistoricalPort(host: host, port: port)
+                }
+                self.launch(device: target)
+                return
+            }
+            
+            // Fallback to nmap scan
+            await MainActor.run {
+                appState.scrcpyOutput += "→ Historical ports failed. Scanning ports on \(host) with nmap (this may take up to 90 seconds)...\n\n"
+            }
+            
+            let ports = await self.scanPortsWithNmap(host: host)
             
             if ports.isEmpty {
                 await MainActor.run {
-                    appState.connectionStatus = .failed(message: "No open ports found. Please enter hostname and port manually.")
+                    appState.connectionStatus = .failed(message: "No open ports found via nmap. Please enter hostname and port manually.")
                 }
                 return
             }
@@ -105,10 +144,9 @@ class ScrcpyManager {
             let portsToTry = Array(ports.prefix(2))
             await MainActor.run {
                 let portsString = portsToTry.map { String($0) }.joined(separator: ", ")
-                appState.scrcpyOutput += "→ Found ports: \(portsString)\n"
+                appState.scrcpyOutput += "→ Found open ports: \(portsString)\n"
             }
 
-            var foundTarget: ADBDevice? = nil
             for port in portsToTry {
                 let scanSerial = "\(host):\(port)"
                 await MainActor.run {
@@ -129,6 +167,10 @@ class ScrcpyManager {
                 await MainActor.run {
                     appState.scrcpyOutput += "→ Successfully connected to \(target.serial)\n\n"
                 }
+                let portStr = target.serial.components(separatedBy: ":").last ?? ""
+                if let port = UInt16(portStr) {
+                    self.saveHistoricalPort(host: host, port: port)
+                }
                 self.launch(device: target)
             } else {
                 await MainActor.run {
@@ -138,90 +180,78 @@ class ScrcpyManager {
         }
     }
 
-    // MARK: - Native Port Scanner
+    // MARK: - Nmap Port Scanner & History
     
-    private class ScanState: @unchecked Sendable {
-        var isFinished = false
-        let lock = NSLock()
+    private func getHistoricalPorts(host: String) -> [UInt16] {
+        let dict = UserDefaults.standard.dictionary(forKey: "historicalPorts") as? [String: [UInt16]] ?? [:]
+        return dict[host] ?? []
     }
 
-    private func scanPortsNatively(host: String, range: ClosedRange<UInt16>, maxConcurrency: Int) async -> [UInt16] {
-        var openPorts: [UInt16] = []
+    private func saveHistoricalPort(host: String, port: UInt16) {
+        var dict = UserDefaults.standard.dictionary(forKey: "historicalPorts") as? [String: [UInt16]] ?? [:]
+        var ports = dict[host] ?? []
+        ports.removeAll { $0 == port }
+        ports.insert(port, at: 0)
+        if ports.count > 5 { ports = Array(ports.prefix(5)) }
+        dict[host] = ports
+        UserDefaults.standard.set(dict, forKey: "historicalPorts")
+    }
+
+    private func resolvedNmapPath() -> String {
+        if let bundlePath = Bundle.main.url(forResource: "nmap", withExtension: nil, subdirectory: "nmap_bundled/bin")?.path, FileManager.default.fileExists(atPath: bundlePath) {
+            return bundlePath
+        }
+        if let bundlePath = Bundle.main.url(forResource: "nmap", withExtension: nil)?.path, FileManager.default.fileExists(atPath: bundlePath) {
+            return bundlePath
+        }
+        if FileManager.default.fileExists(atPath: "/opt/homebrew/bin/nmap") { return "/opt/homebrew/bin/nmap" }
+        if FileManager.default.fileExists(atPath: "/usr/local/bin/nmap") { return "/usr/local/bin/nmap" }
+        return "/usr/bin/env nmap" // fallback
+    }
+
+    private func nmapDataDir() -> String? {
+        if let bundlePath = Bundle.main.url(forResource: "nmap", withExtension: nil, subdirectory: "nmap_bundled/share")?.path, FileManager.default.fileExists(atPath: bundlePath) {
+            return bundlePath
+        }
+        return nil
+    }
+
+    private func scanPortsWithNmap(host: String) async -> [UInt16] {
+        let nmapPath = resolvedNmapPath()
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: nmapPath)
+        proc.arguments = ["-p", "30000-49999", host]
         
-        await withTaskGroup(of: (UInt16, Bool).self) { group in
-            var index = range.lowerBound
+        var env = ProcessInfo.processInfo.environment
+        if let dataDir = nmapDataDir() {
+            env["NMAPDIR"] = dataDir
+        }
+        proc.environment = env
+        
+        let pipe = Pipe()
+        proc.standardOutput = pipe
+        proc.standardError = pipe
+        
+        do {
+            try proc.run()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            proc.waitUntilExit()
             
-            for _ in 0..<min(maxConcurrency, range.count) {
-                let port = index
-                group.addTask { return (port, await self.checkPort(host: host, port: port)) }
-                if index == range.upperBound { break }
-                index += 1
-            }
+            let output = String(data: data, encoding: .utf8) ?? ""
+            var openPorts: [UInt16] = []
             
-            for await (port, isOpen) in group {
-                if isOpen {
-                    openPorts.append(port)
-                    if openPorts.count >= 2 {
-                        group.cancelAll()
-                        break
+            for line in output.components(separatedBy: .newlines) {
+                if line.contains("/tcp") && line.contains("open") {
+                    if let portStr = line.components(separatedBy: "/").first?.trimmingCharacters(in: .whitespaces),
+                       let port = UInt16(portStr) {
+                        openPorts.append(port)
                     }
                 }
-                
-                if index <= range.upperBound, !group.isCancelled {
-                    let port = index
-                    group.addTask { return (port, await self.checkPort(host: host, port: port)) }
-                    index += 1
-                }
             }
-        }
-        return openPorts.sorted()
-    }
-
-    private func checkPort(host: String, port: UInt16) async -> Bool {
-        return await withCheckedContinuation { continuation in
-            let hostEndpoint = NWEndpoint.Host(host)
-            guard let portEndpoint = NWEndpoint.Port(rawValue: port) else {
-                continuation.resume(returning: false)
-                return
-            }
-            let connection = NWConnection(host: hostEndpoint, port: portEndpoint, using: .tcp)
-            
-            let state = ScanState()
-            
-            connection.stateUpdateHandler = { newState in
-                state.lock.lock()
-                if state.isFinished {
-                    state.lock.unlock()
-                    return
-                }
-                switch newState {
-                case .ready:
-                    state.isFinished = true
-                    state.lock.unlock()
-                    connection.cancel()
-                    continuation.resume(returning: true)
-                case .failed(_), .cancelled:
-                    state.isFinished = true
-                    state.lock.unlock()
-                    continuation.resume(returning: false)
-                default:
-                    state.lock.unlock()
-                }
-            }
-            
-            connection.start(queue: DispatchQueue.global(qos: .userInitiated))
-            
-            DispatchQueue.global().asyncAfter(deadline: .now() + 0.4) {
-                state.lock.lock()
-                if state.isFinished {
-                    state.lock.unlock()
-                    return
-                }
-                state.isFinished = true
-                state.lock.unlock()
-                connection.cancel()
-                continuation.resume(returning: false)
-            }
+            return openPorts
+        } catch {
+            print("Nmap error: \(error)")
+            return []
         }
     }
 

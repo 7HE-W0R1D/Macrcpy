@@ -25,6 +25,7 @@ class PortScanner {
                 totalScanned += 1
                 if isOpen {
                     openPorts.append(port)
+                    print("Found open port: \(port)")
                     if openPorts.count >= 2 {
                         group.cancelAll()
                         break
@@ -66,7 +67,6 @@ class PortScanner {
                     connection.cancel()
                     continuation.resume(returning: true)
                 case .failed(let error):
-                    // print("Failed: \(error)") // Optional debug
                     state.isFinished = true
                     state.lock.unlock()
                     continuation.resume(returning: false)
@@ -81,7 +81,7 @@ class PortScanner {
             
             connection.start(queue: DispatchQueue.global(qos: .userInitiated))
             
-            DispatchQueue.global().asyncAfter(deadline: .now() + 0.4) {
+            DispatchQueue.global().asyncAfter(deadline: .now() + 2.0) {
                 state.lock.lock()
                 if state.isFinished {
                     state.lock.unlock()
@@ -97,12 +97,12 @@ class PortScanner {
 }
 
 let scanner = PortScanner()
-let host = "127.0.0.1" // Random non-local IP that will timeout
+let host = "pixel-9-pro-xl"
 
 Task {
     print("Starting scan on \(host) for ports 30000...49999")
     let start = Date()
-    let openPorts = await scanner.scanPortsNatively(host: host, range: 30000...49999, maxConcurrency: 500)
+    let openPorts = await scanner.scanPortsNatively(host: host, range: 30000...49999, maxConcurrency: 100)
     let duration = Date().timeIntervalSince(start)
     print("Scan completed in \(String(format: "%.2f", duration)) seconds.")
     print("Open ports found: \(openPorts)")
