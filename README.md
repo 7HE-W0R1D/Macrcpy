@@ -9,3 +9,11 @@ This is a fully vibe-coded app that does one simple thing: launch scrcpy.
 I'm tired of opening commandline and hence this app.
 
 This is purely for study purposes, please delete the app within 24 hours of download.
+
+> [!note]
+> To use this app, run the following code after moved it to application folder
+> ```
+> chmod +x /Applications/Macrcpy.app/Contents/MacOS/Macrcpy
+> chmod +x /Applications/Macrcpy.app
+> xattr -r -d com.apple.quarantine /Applications/Macrcpy.app
+> ```
