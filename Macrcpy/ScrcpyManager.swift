@@ -313,14 +313,20 @@ class ScrcpyManager {
         // Virtual Display & Power
         let useNewDisplay = defaults.bool(forKey: "useNewDisplay")
         if useNewDisplay {
-            let spec = defaults.string(forKey: "newDisplaySpec") ?? "1920x1080/300"
-            let trimmedSpec = spec.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmedSpec.isEmpty {
-                args.append("--new-display=\(trimmedSpec)")
+            let resolution = defaults.string(forKey: "newDisplayResolution") ?? ""
+            let dpi        = defaults.string(forKey: "newDisplayDpi") ?? ""
+            let trimRes = resolution.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimDpi = dpi.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimRes.isEmpty {
+                let spec = trimDpi.isEmpty ? trimRes : "\(trimRes)/\(trimDpi)"
+                args.append("--new-display=\(spec)")
             } else {
                 args.append("--new-display")
             }
         }
+
+        let turnScreenOff = defaults.bool(forKey: "turnScreenOff")
+        if turnScreenOff { args.append("-S") }
 
         let powerOffOnClose = defaults.bool(forKey: "powerOffOnClose")
         if powerOffOnClose {

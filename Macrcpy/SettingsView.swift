@@ -22,9 +22,11 @@ struct SettingsView: View {
     @AppStorage("forwardMouse")        private var forwardMouse: Bool    = false
 
     // ── Virtual Display & Power ──────────────────────────────────────────────
-    @AppStorage("useNewDisplay")       private var useNewDisplay: Bool   = false
-    @AppStorage("newDisplaySpec")      private var newDisplaySpec: String = "1920x1080/300"
-    @AppStorage("powerOffOnClose")     private var powerOffOnClose: Bool = false
+    @AppStorage("useNewDisplay")         private var useNewDisplay: Bool    = false
+    @AppStorage("newDisplayResolution")  private var newDisplayResolution: String = "1920x1080"
+    @AppStorage("newDisplayDpi")         private var newDisplayDpi: String  = ""
+    @AppStorage("powerOffOnClose")       private var powerOffOnClose: Bool  = false
+    @AppStorage("turnScreenOff")         private var turnScreenOff: Bool    = false
 
     // ── Recording ──────────────────────────────────────────────────────────
     @AppStorage("autoRecord")          private var autoRecord: Bool      = false
@@ -34,9 +36,10 @@ struct SettingsView: View {
     @AppStorage("scrcpyBinaryPath")    private var scrcpyBinaryPath: String = ""
     @AppStorage("adbBinaryPath")       private var adbBinaryPath: String    = ""
 
+    private let commonBitrates: [Double] = [2, 4, 8, 12, 16, 24, 32, 48, 64]
+
     var body: some View {
         Form {
-            logSection
             deviceSection
             inputSection
             videoSection
@@ -45,6 +48,7 @@ struct SettingsView: View {
             recordingSection
             toolsSection
             customPathsSection
+            logSection
         }
         .formStyle(.grouped)
         .frame(minWidth: 480, idealWidth: 520, maxWidth: 580)
@@ -112,15 +116,27 @@ struct SettingsView: View {
     private var extraDisplaySection: some View {
         Section("Virtual Display & Power") {
             Toggle("Use New Virtual Display", isOn: $useNewDisplay)
-            
+
             if useNewDisplay {
-                LabeledContent("Resolution & DPI") {
-                    TextField("e.g. 1920x1080/300", text: $newDisplaySpec)
+                LabeledContent("Resolution") {
+                    TextField("", text: $newDisplayResolution)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 140)
+                        .frame(width: 130)
+                }
+
+                LabeledContent("DPI") {
+                    HStack(spacing: 6) {
+                        TextField("", text: $newDisplayDpi)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 85)
+                        Text("optional")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
             }
-            
+
+            Toggle("Turn Screen Off when Connected", isOn: $turnScreenOff)
             Toggle("Turn Screen Off on Close", isOn: $powerOffOnClose)
         }
     }
@@ -143,7 +159,18 @@ struct SettingsView: View {
 
             LabeledContent("Bit Rate") {
                 HStack(spacing: 10) {
-                    Slider(value: $maxBitrateMbps, in: 1...20, step: 1)
+                    Slider(value: Binding(
+                        get: {
+                            let index = commonBitrates.firstIndex(of: maxBitrateMbps) ?? 2 // Default to 8 (index 2)
+                            return Double(index)
+                        },
+                        set: { newVal in
+                            let index = Int(newVal.rounded())
+                            if index >= 0 && index < commonBitrates.count {
+                                maxBitrateMbps = commonBitrates[index]
+                            }
+                        }
+                    ), in: 0...Double(commonBitrates.count - 1), step: 1)
                         .frame(width: 140)
                     Text("\(Int(maxBitrateMbps)) Mbps")
                         .foregroundStyle(.secondary)
@@ -208,7 +235,6 @@ struct SettingsView: View {
                         }
                         Button("Choose…") { pickFolder { recordingPath = $0.path } }
                             .buttonStyle(.bordered)
-                            .controlSize(.small)
                     }
                 }
             }
@@ -244,6 +270,8 @@ struct SettingsView: View {
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
                                 .background(.orange.opacity(0.12), in: Capsule())
+                                .lineLimit(1)
+                                .fixedSize(horizontal: true, vertical: false)
                         } else if bm.scrcpyInstalled != nil {
                             Text("Up to date")
                                 .font(.caption)
@@ -254,9 +282,8 @@ struct SettingsView: View {
                     Spacer(minLength: 0)
 
                     if bm.isDownloadingScrcpy {
-                        ProgressView().scaleEffect(0.7)
                         Text(bm.scrcpyInstalled == nil ? "Downloading…" : "Updating…")
-                            .font(.caption)
+                            .font(.callout)
                             .foregroundStyle(.secondary)
                     } else {
                         Button(bm.scrcpyInstalled == nil ? "Download" :
@@ -264,7 +291,6 @@ struct SettingsView: View {
                             bm.downloadScrcpy()
                         }
                         .buttonStyle(.bordered)
-                        .controlSize(.small)
                     }
                 }
             }
@@ -286,16 +312,14 @@ struct SettingsView: View {
                     Spacer(minLength: 0)
 
                     if bm.isDownloadingAdb {
-                        ProgressView().scaleEffect(0.7)
                         Text(bm.adbInstalled == nil ? "Downloading…" : "Updating…")
-                            .font(.caption)
+                            .font(.callout)
                             .foregroundStyle(.secondary)
                     } else {
                         Button(bm.adbInstalled == nil ? "Download" : "Update") {
                             bm.downloadAdb()
                         }
                         .buttonStyle(.bordered)
-                        .controlSize(.small)
                     }
                 }
             }
@@ -309,16 +333,6 @@ struct SettingsView: View {
                 }
             }
 
-            // ── Refresh button ────────────────────────────────────────────
-            HStack {
-                Spacer()
-                Button("Check for Updates") {
-                    bm.checkForUpdates()
-                    bm.refreshInstalledVersions()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-            }
 
         } header: {
             Text("Tools")
@@ -362,7 +376,7 @@ struct SettingsView: View {
                 }
                 Spacer(minLength: 0)
                 Button("Browse…") { pickFile { path.wrappedValue = $0.path } }
-                    .buttonStyle(.bordered).controlSize(.mini)
+                    .buttonStyle(.bordered)
                 if !path.wrappedValue.isEmpty {
                     Button { path.wrappedValue = "" } label: {
                         Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
@@ -392,6 +406,7 @@ struct SettingsView: View {
 }
 
 #Preview {
-    SettingsView()
+    let _ = UserDefaults.standard.set(true, forKey: "useNewDisplay")
+    return SettingsView()
         .environmentObject(AppState())
 }
