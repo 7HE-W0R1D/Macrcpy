@@ -323,6 +323,26 @@ class ScrcpyManager {
             } else {
                 args.append("--new-display")
             }
+
+            let flexDisplay = defaults.bool(forKey: "flexDisplay")
+            if flexDisplay {
+                args.append("--flex-display")
+            }
+
+            let displayImePolicyLocal = defaults.object(forKey: "displayImePolicyLocal") as? Bool ?? true
+            if displayImePolicyLocal {
+                args.append("--display-ime-policy=local")
+            }
+        }
+
+        let keepActive = defaults.bool(forKey: "keepActive")
+        if keepActive {
+            args.append("--keep-active")
+        }
+
+        let noWindowAspectRatioLock = defaults.bool(forKey: "noWindowAspectRatioLock")
+        if noWindowAspectRatioLock {
+            args.append("--no-window-aspect-ratio-lock")
         }
 
         let turnScreenOff = defaults.bool(forKey: "turnScreenOff")
@@ -334,13 +354,16 @@ class ScrcpyManager {
         }
 
         // Video
-        let resolution  = defaults.integer(forKey: "maxResolution").nonZero  ?? 1080
         let bitrateMbps = defaults.double(forKey: "maxBitrateMbps").nonZero  ?? 8.0
         let fps         = defaults.integer(forKey: "maxFps").nonZero          ?? 60
 
-        args += ["--max-size",       "\(resolution)"]
         args += ["--video-bit-rate", "\(Int(bitrateMbps))M"]
         args += ["--max-fps",        "\(fps)"]
+
+        let videoCodec = defaults.string(forKey: "videoCodec") ?? "h264"
+        if videoCodec != "h264" {
+            args.append("--video-codec=\(videoCodec)")
+        }
 
         // Audio
         let audioEnabled = defaults.object(forKey: "forwardAudio") as? Bool ?? true
@@ -427,6 +450,16 @@ class ScrcpyManager {
     // MARK: - Cleanup
 
     private func cleanup() {
+        if let device = appState?.connectionStatus.runningDevice {
+            let defaults = UserDefaults.standard
+            if defaults.bool(forKey: "autoLockOnDisconnect") {
+                let serial = device.serial
+                DispatchQueue.global(qos: .background).async { [weak self] in
+                    self?.runADBCommand(serial: serial, args: ["shell", "input", "keyevent", "223"])
+                }
+            }
+        }
+
         outputPipe?.fileHandleForReading.readabilityHandler = nil
         process    = nil
         outputPipe = nil
@@ -437,6 +470,20 @@ class ScrcpyManager {
         outputPipe?.fileHandleForReading.readabilityHandler = nil
         process    = nil
         outputPipe = nil
+    }
+
+    private func runADBCommand(serial: String, args: [String]) {
+        guard let appState = appState else { return }
+        let adbPath = appState.resolvedAdbPath()
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: adbPath)
+        proc.arguments = ["-s", serial] + args
+        do {
+            try proc.run()
+            proc.waitUntilExit()
+        } catch {
+            print("Failed to run adb command: \(error.localizedDescription)")
+        }
     }
 
     deinit { process?.terminate() }

@@ -1,0 +1,66 @@
+{
+  "" : {
+    "const-values" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/Macrcpy-primary.swiftconstvalues",
+    "dependencies" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/Macrcpy-primary.d",
+    "diagnostics" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/Macrcpy-primary.dia",
+    "emit-module-dependencies" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/Macrcpy-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/Macrcpy-primary-emit-module.dia",
+    "pch" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/Macrcpy-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/Macrcpy-primary.swiftdeps"
+  },
+  "/Users/breakfastberry/Documents/Github/Macrcpy/Macrcpy/ADBManager.swift" : {
+    "index-unit-output-path" : "/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/ADBManager.o",
+    "llvm-bc" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/ADBManager.bc",
+    "object" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/ADBManager.o"
+  },
+  "/Users/breakfastberry/Documents/Github/Macrcpy/Macrcpy/AppState.swift" : {
+    "index-unit-output-path" : "/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/AppState.o",
+    "llvm-bc" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/AppState.bc",
+    "object" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/AppState.o"
+  },
+  "/Users/breakfastberry/Documents/Github/Macrcpy/Macrcpy/BinaryManager.swift" : {
+    "index-unit-output-path" : "/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/BinaryManager.o",
+    "llvm-bc" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/BinaryManager.bc",
+    "object" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/BinaryManager.o"
+  },
+  "/Users/breakfastberry/Documents/Github/Macrcpy/Macrcpy/ConnectedView.swift" : {
+    "index-unit-output-path" : "/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/ConnectedView.o",
+    "llvm-bc" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/ConnectedView.bc",
+    "object" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/ConnectedView.o"
+  },
+  "/Users/breakfastberry/Documents/Github/Macrcpy/Macrcpy/ContentView.swift" : {
+    "index-unit-output-path" : "/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/ContentView.o",
+    "llvm-bc" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/ContentView.bc",
+    "object" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/ContentView.o"
+  },
+  "/Users/breakfastberry/Documents/Github/Macrcpy/Macrcpy/DeviceListView.swift" : {
+    "index-unit-output-path" : "/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/DeviceListView.o",
+    "llvm-bc" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/DeviceListView.bc",
+    "object" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/DeviceListView.o"
+  },
+  "/Users/breakfastberry/Documents/Github/Macrcpy/Macrcpy/EmptyStateView.swift" : {
+    "index-unit-output-path" : "/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/EmptyStateView.o",
+    "llvm-bc" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/EmptyStateView.bc",
+    "object" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/EmptyStateView.o"
+  },
+  "/Users/breakfastberry/Documents/Github/Macrcpy/Macrcpy/MacrcpyApp.swift" : {
+    "index-unit-output-path" : "/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/MacrcpyApp.o",
+    "llvm-bc" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/MacrcpyApp.bc",
+    "object" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/MacrcpyApp.o"
+  },
+  "/Users/breakfastberry/Documents/Github/Macrcpy/Macrcpy/ScrcpyManager.swift" : {
+    "index-unit-output-path" : "/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/ScrcpyManager.o",
+    "llvm-bc" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/ScrcpyManager.bc",
+    "object" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/ScrcpyManager.o"
+  },
+  "/Users/breakfastberry/Documents/Github/Macrcpy/Macrcpy/SettingsView.swift" : {
+    "index-unit-output-path" : "/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/SettingsView.o",
+    "llvm-bc" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/SettingsView.bc",
+    "object" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/SettingsView.o"
+  },
+  "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "index-unit-output-path" : "/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/x86_64/GeneratedAssetSymbols.o"
+  }
+}

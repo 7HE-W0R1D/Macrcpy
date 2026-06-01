@@ -1,0 +1,12 @@
+{
+  "/Users/breakfastberry/Documents/Github/Macrcpy/Macrcpy/ADBManager.swift" : {
+    "abi-baseline-json" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/arm64/Macrcpy.abi.json",
+    "const-values" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/arm64/Macrcpy-primary.swiftconstvalues",
+    "dependencies" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/arm64/Macrcpy-primary.d",
+    "diagnostics" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/arm64/Macrcpy-primary.dia",
+    "objc-header" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/arm64/Macrcpy-Swift.h",
+    "swiftdoc" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/arm64/Macrcpy.swiftdoc",
+    "swiftmodule" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/arm64/Macrcpy.swiftmodule",
+    "swiftsourceinfo" : "/Users/breakfastberry/Documents/Github/Macrcpy/build/DerivedData/Build/Intermediates.noindex/Macrcpy.build/Release/Macrcpy.build/Objects-normal/arm64/Macrcpy.swiftsourceinfo"
+  }
+}

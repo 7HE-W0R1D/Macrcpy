@@ -12,6 +12,7 @@ struct SettingsView: View {
     @AppStorage("maxResolution")       private var maxResolution: Int    = 1080
     @AppStorage("maxBitrateMbps")      private var maxBitrateMbps: Double = 8.0
     @AppStorage("maxFps")              private var maxFps: Int            = 60
+    @AppStorage("videoCodec")          private var videoCodec: String    = "h264"
 
     // ── Audio ──────────────────────────────────────────────────────────────
     @AppStorage("forwardAudio")        private var forwardAudio: Bool    = true
@@ -25,8 +26,13 @@ struct SettingsView: View {
     @AppStorage("useNewDisplay")         private var useNewDisplay: Bool    = false
     @AppStorage("newDisplayResolution")  private var newDisplayResolution: String = "1920x1080"
     @AppStorage("newDisplayDpi")         private var newDisplayDpi: String  = ""
+    @AppStorage("flexDisplay")           private var flexDisplay: Bool      = false
     @AppStorage("powerOffOnClose")       private var powerOffOnClose: Bool  = false
     @AppStorage("turnScreenOff")         private var turnScreenOff: Bool    = false
+    @AppStorage("keepActive")            private var keepActive: Bool       = false
+    @AppStorage("noWindowAspectRatioLock") private var noWindowAspectRatioLock: Bool = false
+    @AppStorage("autoLockOnDisconnect")  private var autoLockOnDisconnect: Bool = false
+    @AppStorage("displayImePolicyLocal") private var displayImePolicyLocal: Bool = true
 
     // ── Recording ──────────────────────────────────────────────────────────
     @AppStorage("autoRecord")          private var autoRecord: Bool      = false
@@ -43,7 +49,7 @@ struct SettingsView: View {
             deviceSection
             inputSection
             videoSection
-            extraDisplaySection
+            powerSection
             audioSection
             recordingSection
             toolsSection
@@ -111,50 +117,59 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Virtual Display & Power
+    // MARK: - Video & Virtual Display
 
-    private var extraDisplaySection: some View {
-        Section("Virtual Display & Power") {
+    private var videoSection: some View {
+        Section("Video & Virtual Display") {
             Toggle("Use New Virtual Display", isOn: $useNewDisplay)
 
-            if useNewDisplay {
-                LabeledContent("Resolution") {
-                    TextField("", text: $newDisplayResolution)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 130)
-                }
-
-                LabeledContent("DPI") {
-                    HStack(spacing: 6) {
-                        TextField("", text: $newDisplayDpi)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 85)
-                        Text("optional")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
+            LabeledContent("Resolution") {
+                if useNewDisplay {
+                    Picker("", selection: $newDisplayResolution) {
+                        Text("1080p (1920x1080)").tag("1920x1080")
+                        Text("2K (2560x1440)").tag("2560x1440")
+                        Text("4K (3840x2160)").tag("3840x2160")
                     }
+                    .labelsHidden()
+                    .frame(width: 160)
+                } else {
+                    Text("Native Resolution")
+                        .foregroundStyle(.secondary)
                 }
             }
 
-            Toggle("Turn Screen Off when Connected", isOn: $turnScreenOff)
-            Toggle("Turn Screen Off on Close", isOn: $powerOffOnClose)
-        }
-    }
-
-    // MARK: - Video
-
-    private var videoSection: some View {
-        Section("Video") {
-            LabeledContent("Max Resolution") {
-                Picker("", selection: $maxResolution) {
-                    Text("480p").tag(480)
-                    Text("720p").tag(720)
-                    Text("1080p").tag(1080)
-                    Text("1440p").tag(1440)
-                    Text("4K").tag(2160)
+            if useNewDisplay {
+                LabeledContent("Text Size") {
+                    HStack(spacing: 8) {
+                        Text("Larger Text")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        
+                        Slider(value: Binding(
+                            get: {
+                                if let dpiInt = Int(newDisplayDpi) {
+                                    let dpis = [320, 280, 240, 200, 160]
+                                    return Double(dpis.firstIndex(of: dpiInt) ?? 2)
+                                }
+                                return 2.0
+                            },
+                            set: { newVal in
+                                let dpis = [320, 280, 240, 200, 160]
+                                let index = Int(newVal.rounded())
+                                let selectedDpi = dpis[index]
+                                newDisplayDpi = "\(selectedDpi)"
+                            }
+                        ), in: 0...4, step: 1)
+                        .frame(width: 150)
+                        
+                        Text("More Space")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                .labelsHidden()
-                .frame(width: 110)
+
+                Toggle("Dynamic Resizing (--flex-display)", isOn: $flexDisplay)
+                Toggle("Show Input Candidates locally on Virtual Display", isOn: $displayImePolicyLocal)
             }
 
             LabeledContent("Bit Rate") {
@@ -189,6 +204,29 @@ struct SettingsView: View {
                 .labelsHidden()
                 .frame(width: 110)
             }
+
+            LabeledContent("Video Codec") {
+                Picker("", selection: $videoCodec) {
+                    Text("H.264 (default)").tag("h264")
+                    Text("H.265 (HEVC)").tag("h265")
+                    Text("AV1").tag("av1")
+                }
+                .labelsHidden()
+                .frame(width: 120)
+            }
+
+            Toggle("Unlock Window Aspect Ratio (--no-window-aspect-ratio-lock)", isOn: $noWindowAspectRatioLock)
+        }
+    }
+
+    // MARK: - Power
+
+    private var powerSection: some View {
+        Section("Power") {
+            Toggle("Prevent Device Sleeping (--keep-active)", isOn: $keepActive)
+            Toggle("Turn Screen Off when Connected (-S)", isOn: $turnScreenOff)
+            Toggle("Turn Screen Off on Close", isOn: $powerOffOnClose)
+            Toggle("Auto-Lock Screen on Disconnect (via ADB)", isOn: $autoLockOnDisconnect)
         }
     }
 
